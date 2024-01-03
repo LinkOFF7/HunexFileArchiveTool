@@ -35,7 +35,7 @@ namespace HunexFileArchiveTool
             Console.WriteLine("WITCH ON THE HOLY NIGHT HFA (Hunex) Archive Tool by LinkOFF");
             Console.WriteLine("");
             Console.WriteLine("Usage: <mode> <file/folder>");
-            Console.WriteLine("  --extract\tExtracts all contents of given file archive.");
+            Console.WriteLine("  --extract\tExtract all archive contents in the directory.");
             Console.WriteLine("  --build\tBuild a new archive from given directory.");
             //Console.WriteLine("  --patch\tReplace existed file inside archive.");
         }
@@ -71,24 +71,35 @@ namespace HunexFileArchiveTool
             }
         }
 
-        static void Extract(string file)
+        static void Extract(string folderPath)
         {
-            using(BinaryReader reader = new BinaryReader(File.OpenRead(file)))
+            string[] filePaths = Directory.GetFiles(folderPath);
+            foreach (string file in filePaths)
             {
-                _hdr = new Header(reader);
-                _entries = new FileEntry[_hdr.FileCount];
-                for(int i = 0; i < _hdr.FileCount; i++)
-                    _entries[i] = new FileEntry(reader);
-                string outDir = Path.GetFileNameWithoutExtension(file);
-                int index = 0; // There are files with the same names in the archive. And I want to keep the original sorting.
-                foreach (var entry in _entries)
+                string fileExtension = Path.GetExtension(file);
+
+                if (fileExtension.Equals(".hfa", StringComparison.OrdinalIgnoreCase))
                 {
-                    reader.BaseStream.Position = _hdr.DataStartOffset + entry.Offset;
-                    byte[] data = reader.ReadBytes((int)entry.Size);
-                    string path = outDir + Path.DirectorySeparatorChar + $"{index++.ToString("D4")}_" + entry.FileName;
-                    Console.WriteLine("Extracting: {0}", path);
-                    if (!Directory.Exists(Path.GetDirectoryName(path))) Directory.CreateDirectory(Path.GetDirectoryName(path));
-                    File.WriteAllBytes(path, data);
+                    Console.WriteLine("Unpack: " + Path.GetFileName(file));
+
+                    using (BinaryReader reader = new BinaryReader(File.OpenRead(file)))
+                    {
+                        _hdr = new Header(reader);
+                        _entries = new FileEntry[_hdr.FileCount];
+                        for (int i = 0; i < _hdr.FileCount; i++)
+                            _entries[i] = new FileEntry(reader);
+                        string outDir = Path.GetFileNameWithoutExtension(file);
+                        int index = 0; // There are files with the same names in the archive. And I want to keep the original sorting.
+                        foreach (var entry in _entries)
+                        {
+                            reader.BaseStream.Position = _hdr.DataStartOffset + entry.Offset;
+                            byte[] data = reader.ReadBytes((int)entry.Size);
+                            string path = outDir + Path.DirectorySeparatorChar + $"{index++.ToString("D4")}_" + entry.FileName;
+                            Console.WriteLine("Extracting: {0}", path);
+                            if (!Directory.Exists(Path.GetDirectoryName(path))) Directory.CreateDirectory(Path.GetDirectoryName(path));
+                            File.WriteAllBytes(path, data);
+                        }
+                    }
                 }
             }
         }
